@@ -28,27 +28,51 @@ function removeShoppingItem(button){
 
 }
 
-function saveData(){
+async function saveData(){
 
-    localStorage.setItem(
-        "manualShopping",
-        JSON.stringify(manualShopping)
+    const db =
+        window.firebaseDb;
+
+    if(!db){
+
+        localStorage.setItem(
+            "manualShopping",
+            JSON.stringify(manualShopping)
+        );
+
+        localStorage.setItem(
+            "recipes",
+            JSON.stringify(recipes)
+        );
+
+        localStorage.setItem(
+            "weekPlan",
+            JSON.stringify(weekPlan)
+        );
+
+        return;
+    }
+
+    await window.firebaseSetDoc(
+
+        window.firebaseDoc(
+            db,
+            "mealplanner",
+            "main"
+        ),
+
+        {
+
+            recipes: recipes,
+
+            weekPlan: weekPlan,
+
+            manualShopping: manualShopping
+
+        }
+
     );
 
-    localStorage.setItem(
-        "recipes",
-        JSON.stringify(recipes)
-    );
-
-    localStorage.setItem(
-        "pantry",
-        JSON.stringify(pantry)
-    );
-
-    localStorage.setItem(
-        "weekPlan",
-        JSON.stringify(weekPlan)
-    );
 }
 
 function showTab(tab){
@@ -472,6 +496,52 @@ function renderWeekSummary(){
     
 }
 
-renderRecipes();
-renderPlanner();
-renderPantry();
+async function loadData(){
+
+    try{
+
+        const snapshot =
+            await window.firebaseGetDoc(
+
+                window.firebaseDoc(
+                    window.firebaseDb,
+                    "mealplanner",
+                    "main"
+                )
+
+            );
+
+        if(snapshot.exists()){
+
+            const data =
+                snapshot.data();
+
+            recipes =
+                data.recipes || {};
+
+            weekPlan =
+                data.weekPlan || {};
+
+            manualShopping =
+                data.manualShopping || [];
+
+        }
+
+        renderRecipes();
+        renderPlanner();
+        renderWeekSummary();
+
+    }
+    catch(error){
+
+        console.log(error);
+
+    }
+
+}
+
+setTimeout(() => {
+
+    loadData();
+
+}, 1500);
