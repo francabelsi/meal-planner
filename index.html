@@ -86,8 +86,43 @@
 
     </div>
 
+<script type="module">
 
-    <script src="script.js"></script>
+import { initializeApp }
+from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
+
+import {
+    getFirestore,
+    doc,
+    getDoc,
+    setDoc
+}
+from "https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyDRv8ZDSgIS5GsrchFnnGohqQNSaTcoTSc",
+    authDomain: "meal-planner-383b6.firebaseapp.com",
+    projectId: "meal-planner-383b6",
+    storageBucket: "meal-planner-383b6.firebasestorage.app",
+    messagingSenderId: "208859157241",
+    appId: "1:208859157241:web:0185a7113f7614e8990828",
+    measurementId: "G-2LG3TD6X0E"
+};
+
+const app =
+    initializeApp(firebaseConfig);
+
+const db =
+    getFirestore(app);
+
+window.firebaseDb = db;
+window.firebaseDoc = doc;
+window.firebaseGetDoc = getDoc;
+window.firebaseSetDoc = setDoc;
+
+</script>
+
+    <script src="script.js" defer></script>
 
 </body>
 
