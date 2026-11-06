@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Sweet Meal Planner</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>Sweet Meal Planner</h1>
+        <p>Organizza pasti, dispensa e lista della spesa</p>
+    </div>
+
+    <div class="tabs">
+        <button onclick="showTab('recipes')">
+            Ricette
+        </button>
+
+        <button onclick="showTab('planner')">
+            Pianificazione
+        </button>
+
+        <button onclick="showTab('shopping')">
+            Spesa
+        </button>
+
+    </div>
+
+    <div id="recipes" class="tab">
+
+        <h2>Nuova Ricetta</h2>
+
+        <input
+            id="recipeName"
+            placeholder="Nome ricetta">
+
+        <textarea
+            id="recipeIngredients"
+            placeholder="Ingrediente|Quantità|Unità&#10;Pasta|400|g&#10;Uova|4|pz"></textarea>
+
+        <button onclick="addRecipe()">
+            Salva Ricetta
+        </button>
+
+        <h3>Archivio Ricette</h3>
+
+        <ul id="recipeList"></ul>
+
+    </div>
+
+    <div id="planner" class="tab hidden">
+
+        <h2>Pianificazione Settimanale</h2>
+
+        <div id="weekContainer"></div>
+
+        <h3>Riepilogo Settimanale</h3>
+
+        <table id="weekSummary">
+        </table>
+
+    </div>
+
+    <div id="shopping" class="tab hidden">
+
+        <h2>Lista della Spesa</h2>
+
+        <input
+            id="manualShoppingItem"
+            placeholder="Aggiungi elemento manualmente">
+
+        <button onclick="addManualShoppingItem()">
+            Aggiungi
+        </button>
+
+        <br><br>
+
+        <button onclick="generateShoppingList()">
+            Genera Lista
+        </button>
+
+        <ul id="shoppingList"></ul>
+
+    </div>
+
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>
