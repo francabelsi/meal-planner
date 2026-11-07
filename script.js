@@ -822,8 +822,8 @@ function getProductForItem(nome){
     return productMatchCache[linkKey];
 }
 
-// Restituisce { totale, stimato } oppure null se non calcolabile
-function computeItemPrice(product, unita, qta){
+// Restituisce { totale, dettaglio } oppure null se non calcolabile
+function computeItemPrice(product, unita, qta, confezioni){
 
     if(!product)
         return null;
@@ -831,22 +831,33 @@ function computeItemPrice(product, unita, qta){
     const ultimo = product.h[product.h.length - 1][1];
     const u = (unita || "").toLowerCase().trim();
 
+    // Prodotto venduto al peso: conta la quantità in g o kg
     if(product.u === "kg"){
 
+        let kg = null;
+
         if(u === "g")
-            return { totale: qta / 1000 * ultimo, stimato: false };
+            kg = qta / 1000;
+        else if(u === "kg")
+            kg = qta;
 
-        if(u === "kg")
-            return { totale: qta * ultimo, stimato: false };
+        if(kg === null)
+            return null;
 
-        return null;
+        kg = Math.round(kg * 1000) / 1000;
+
+        return {
+            totale: kg * ultimo,
+            dettaglio: String(kg).replace(".", ",") +
+                " kg × " + formatEuro(ultimo) + "/kg"
+        };
     }
 
-    if(u === "pz" || u === "")
-        return { totale: qta * ultimo, stimato: false };
-
-    // g, ml, ecc. con prodotto a pezzo: stimo 1 confezione
-    return { totale: qta > 0 ? ultimo : 0, stimato: true };
+    // Prodotto a confezione: conta il numero di confezioni
+    return {
+        totale: confezioni * ultimo,
+        dettaglio: confezioni + " × " + formatEuro(ultimo)
+    };
 }
 
 function buildProductOptions(){
@@ -889,6 +900,14 @@ function decorateShoppingList(){
                     ? terzo.textContent.trim()
                     : "pz";
 
+            const pack = document.createElement("span");
+            pack.className = "pack-wrap";
+            pack.innerHTML =
+                '<input type="number" class="pack-input" ' +
+                'value="1" min="0" step="1" ' +
+                'title="Numero di confezioni da comprare">' +
+                '<small>conf.</small>';
+
             const cell = document.createElement("span");
             cell.className = "price-cell";
 
@@ -910,6 +929,7 @@ function decorateShoppingList(){
 
             const button = li.querySelector("button");
 
+            li.insertBefore(pack, button);
             li.insertBefore(cell, button);
             li.insertBefore(select, button);
 
@@ -922,7 +942,6 @@ function updateShoppingTotals(){
 
     let somma = 0;
     let senzaPrezzo = 0;
-    let stimati = 0;
 
     document
         .querySelectorAll("#shoppingList li")
@@ -930,21 +949,34 @@ function updateShoppingTotals(){
 
             const cell = li.querySelector(".price-cell");
             const select = li.querySelector(".price-select");
-            const input = li.querySelector("input");
+            const qtyInput = li.querySelector("input:not(.pack-input)");
+            const packInput = li.querySelector(".pack-input");
 
-            if(!cell || !select)
+            if(!cell || !select || !qtyInput || !packInput)
                 return;
 
             const product = priceDB.find(p =>
                 productKeyOf(p) === select.value
             ) || null;
 
-            const qta = Number(input.value) || 0;
+            const alPeso = !!product && product.u === "kg";
+
+            // Per i prodotti al peso le confezioni non servono
+            packInput.disabled = alPeso;
+            packInput.parentElement.style.opacity = alPeso ? "0.35" : "1";
+
+            const qta = Number(qtyInput.value) || 0;
+
+            const conf = Math.max(
+                0,
+                Math.floor(Number(packInput.value)) || 0
+            );
 
             const res = computeItemPrice(
                 product,
                 li.dataset.unita,
-                qta
+                qta,
+                conf
             );
 
             if(!res){
@@ -961,15 +993,11 @@ function updateShoppingTotals(){
 
             somma += res.totale;
 
-            if(res.stimato)
-                stimati++;
+            cell.title = "";
 
-            cell.textContent =
-                (res.stimato ? "~" : "") + formatEuro(res.totale);
-
-            cell.title = res.stimato
-                ? "Stima: considero 1 confezione"
-                : "";
+            cell.innerHTML =
+                formatEuro(res.totale) +
+                "<small>" + escapeHtml(res.dettaglio) + "</small>";
 
         });
 
@@ -979,13 +1007,9 @@ function updateShoppingTotals(){
     if(!totale)
         return;
 
-    let nota = "";
-
-    if(stimati > 0)
-        nota += `${stimati} voci stimate a 1 confezione (~). `;
-
-    if(senzaPrezzo > 0)
-        nota += `${senzaPrezzo} voci senza prezzo non incluse.`;
+    const nota = senzaPrezzo > 0
+        ? `${senzaPrezzo} voci senza prezzo non incluse.`
+        : "";
 
     totale.innerHTML =
         `Totale stimato: ${formatEuro(somma)}` +
