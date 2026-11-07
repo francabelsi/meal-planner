@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Sweet Meal Planner</title>
-    <link rel="stylesheet" href="style.css?v=3">
+    <link rel="stylesheet" href="style.css?v=5">
 </head>
 
 <body>
@@ -86,9 +86,34 @@
             Genera Lista
         </button>
 
-        <ul id="shoppingList"></ul>
+        <div id="shoppingList"></div>
 
         <p id="shoppingTotal" class="shopping-total"></p>
+
+        <div class="extra-box">
+
+            <h3>🛒 Cose extra</h3>
+
+            <p class="price-note">
+                Le cose che compri di solito ma non sono nel piano.
+                Salvale qui e aggiungile alla spesa quando ti servono.
+            </p>
+
+            <div class="extra-add-row">
+
+                <input
+                    id="newExtraName"
+                    placeholder="Nuovo extra (es. yogurt)">
+
+                <button onclick="addExtraItem()">
+                    Salva negli extra
+                </button>
+
+            </div>
+
+            <ul id="extraList"></ul>
+
+        </div>
 
     </div>
 
@@ -189,7 +214,7 @@ window.firebaseSetDoc = setDoc;
 
 </script>
     <script src="prices.js?v=3"></script>
-    <script src="script.js?v=3" defer></script>
+    <script src="script.js?v=5" defer></script>
 
 </body>
 

@@ -228,7 +228,7 @@ button:hover{
         0 2px 6px rgba(0,0,0,0.05);
 }
 
-#shoppingList li span:first-child{
+#shoppingList li .item-name{
     flex:1;
 }
 
@@ -507,4 +507,174 @@ button.secondary{
 
 button.secondary:hover{
     background:#dccbd5;
+}
+
+
+/* ===== Categorie nella lista della spesa ===== */
+
+.cat-section{
+    margin-top:18px;
+    padding:4px 14px 10px;
+    background:#fff7fa;
+    border:2px solid #ffd5e8;
+    border-radius:20px;
+    transition:.15s;
+}
+
+.cat-section.drop-over{
+    border-color:#f58bb4;
+    background:#ffe9f3;
+}
+
+.cat-title{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin:10px 0 4px;
+    color:#c85783;
+}
+
+.cat-count{
+    background:#f58bb4;
+    color:white;
+    border-radius:12px;
+    padding:1px 9px;
+    font-size:13px;
+}
+
+.cat-count:empty{
+    display:none;
+}
+
+.cat-list{
+    list-style:none;
+    padding:0;
+    margin:0;
+}
+
+.cat-list:empty::before{
+    content:"Trascina qui i prodotti";
+    display:block;
+    margin:8px 0;
+    padding:10px;
+    text-align:center;
+    font-size:13px;
+    color:#c9a6b7;
+    border:2px dashed #f4c4da;
+    border-radius:12px;
+}
+
+#shoppingList li .drag-handle{
+    flex:none;
+    cursor:grab;
+    touch-action:none;
+    user-select:none;
+    -webkit-user-select:none;
+    color:#d9a2bb;
+    font-size:20px;
+    line-height:1;
+    padding:6px 4px;
+    letter-spacing:-3px;
+}
+
+#shoppingList li .drag-handle:hover{
+    color:#c85783;
+}
+
+#shoppingList li.dragging{
+    opacity:.35;
+}
+
+.drag-ghost{
+    position:fixed;
+    z-index:1000;
+    pointer-events:none;
+    background:white;
+    color:#c85783;
+    font-weight:bold;
+    padding:10px 16px;
+    border-radius:15px;
+    border:1px solid #f58bb4;
+    box-shadow:0 8px 20px rgba(0,0,0,0.2);
+}
+
+body.is-dragging{
+    cursor:grabbing;
+    user-select:none;
+    -webkit-user-select:none;
+}
+
+
+/* ===== Cose extra ===== */
+
+.extra-box{
+    margin-top:25px;
+    padding:4px 15px 15px;
+    background:#fff7fa;
+    border:2px solid #ffd5e8;
+    border-radius:20px;
+}
+
+.extra-add-row{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    margin-top:8px;
+}
+
+.extra-add-row input{
+    margin:0;
+    flex:1;
+}
+
+.extra-add-row button{
+    white-space:nowrap;
+}
+
+#extraList{
+    list-style:none;
+    padding:0;
+    margin:10px 0 0;
+}
+
+#extraList:empty::before{
+    content:"Ancora nessun extra salvato.";
+    display:block;
+    padding:6px 0;
+    font-size:13px;
+    color:#c9a6b7;
+}
+
+#extraList li{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin:8px 0;
+    padding:10px 12px;
+    background:white;
+    border:1px solid #ffd9eb;
+    border-radius:15px;
+}
+
+#extraList .extra-name{
+    flex:1;
+}
+
+#extraList button.extra-del{
+    background:#fde2f3;
+    color:#c85783;
+    padding:4px 10px;
+    border-radius:10px;
+}
+
+#extraList button.extra-del:hover{
+    background:#ffd0e6;
+}
+
+#extraList button:disabled,
+#extraList button:disabled:hover{
+    cursor:default;
+    transform:none;
+    background:#eadde4;
+    color:#7a3552;
 }

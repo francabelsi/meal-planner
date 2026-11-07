@@ -3,6 +3,98 @@ JSON.parse(
     localStorage.getItem("manualShopping")
 ) || [];
 
+/* ===== Categorie lista della spesa ===== */
+
+const SHOP_CATEGORIES = [
+    { id: "frutta",       nome: "Frutta e verdura",      icon: "🥦" },
+    { id: "pane",         nome: "Pane",                  icon: "🥖" },
+    { id: "dolci",        nome: "Dolci / tè / caffè",    icon: "☕" },
+    { id: "carne",        nome: "Carne e affettati",     icon: "🥩" },
+    { id: "latticini",    nome: "Latticini",             icon: "🧀" },
+    { id: "confezionati", nome: "Prodotti confezionati", icon: "🥫" },
+    { id: "congelati",    nome: "Congelati",             icon: "🧊" },
+    { id: "bibite",       nome: "Bibite e patatine",     icon: "🥤" }
+];
+
+const DEFAULT_SHOP_CATEGORY = "confezionati";
+
+// Correzioni fatte a mano: nome prodotto -> categoria (ricordate per le prossime liste)
+let categoryLinks =
+JSON.parse(localStorage.getItem("categoryLinks")) || {};
+
+// Cose extra: nomi dei prodotti che compro spesso ma non sono nel piano
+let extraItems =
+JSON.parse(localStorage.getItem("extraItems")) || [];
+
+// Regole per indovinare la categoria dal nome (p = inizia con, e = parola esatta).
+// L'ordine conta: la prima regola che corrisponde vince.
+const CATEGORY_RULES = [
+    { id: "congelati", p: ["surgelat", "congelat", "gelat", "ghiaccio", "ghiacciol"], e: [] },
+    { id: "bibite", p: ["patatin", "chips", "popcorn", "snack", "acqua", "birra", "vino", "spumante", "prosecco",
+                         "succo", "succhi", "aranciata", "limonata", "gassosa", "coca", "fanta", "sprite", "bibit",
+                         "tonica", "energy", "spritz", "amaro", "liquor", "aperol"], e: ["cola"] },
+    { id: "dolci", p: ["caff", "cioccolat", "biscott", "nutella", "torta", "dolc", "merend", "cornett", "brioche",
+                        "crostat", "wafer", "caramell", "tisan", "camomill", "infus", "cacao", "krapfen", "ciambell",
+                        "muffin", "pasticc", "marmellat"], e: ["te", "the", "tea"] },
+    { id: "latticini", p: ["latte", "yogurt", "yoghurt", "formagg", "mozzarell", "burro", "panna", "uov", "parmigian",
+                            "ricott", "mascarpon", "stracchin", "philadelph", "provol", "scamorz", "feta", "pecorin",
+                            "gorgonzol", "fontin", "asiago", "burrata", "kefir", "caciott", "crescenza", "emmental",
+                            "edam", "galbanin", "skyr", "latticin"], e: ["grana"] },
+    { id: "confezionati", p: ["grattugiat", "pelat", "passat", "scatol", "conserv", "polpa", "barattol", "sott"], e: [] },
+    { id: "pane", p: ["pane", "panin", "pancarr", "focacc", "piadin", "baguett", "ciabatt", "grissin", "rosett",
+                       "michett", "tigell"], e: [] },
+    { id: "carne", p: ["pollo", "manzo", "maiale", "vitell", "tacchin", "salsicc", "hamburger", "bistecc", "macinat",
+                        "prosciutt", "salam", "mortadell", "bresaol", "speck", "pancett", "wurstel", "affettat", "carne",
+                        "pesce", "salmon", "merluzz", "gamber", "cotolett", "arrost", "fesa", "petto", "coscia", "bacon",
+                        "guancial", "spiedin", "agnell", "coniglio", "fettin", "cotechin", "nduja", "calamar", "polpo",
+                        "cozz", "vongol", "orata", "branzin", "sogliol", "spezzatin", "costin", "porchetta", "lonza",
+                        "arista", "filetto"], e: [] },
+    { id: "frutta", p: ["frutta", "verdur", "insalat", "lattug", "rucola", "spinac", "pomodor", "zucchin", "melanzan",
+                         "peperon", "carot", "cipoll", "aglio", "patat", "sedan", "finocch", "cavol", "broccol", "fung",
+                         "zucca", "basilic", "prezzemol", "rosmarin", "salvia", "limon", "cetriol", "fagiolin",
+                         "radicchi", "asparag", "porr", "biet", "verza", "erbe", "avocado", "mirtill", "lampon", "prugn",
+                         "banan", "aranc", "fragol", "uva", "kiwi", "pesch", "albicocc", "ciliegi", "anguria", "cocomer",
+                         "ananas", "mandarin", "clementin", "pompelm", "cachi", "melograno", "granat", "rape", "ravanell",
+                         "barbabiet", "scalogn", "zenzero"],
+      e: ["mela", "mele", "melone", "meloni", "pera", "pere", "fico", "fichi"] }
+];
+
+function guessCategory(nome){
+
+    const tokens = normTokens(nome || "");
+
+    for(const rule of CATEGORY_RULES){
+
+        const hit = tokens.some(t =>
+            rule.e.includes(t) ||
+            rule.p.some(stem => t.startsWith(stem))
+        );
+
+        if(hit)
+            return rule.id;
+    }
+
+    return DEFAULT_SHOP_CATEGORY;
+}
+
+function isValidCategory(id){
+    return SHOP_CATEGORIES.some(c => c.id === id);
+}
+
+// Priorità: categoria già salvata sulla voce > correzione manuale ricordata > indovinata
+function resolveCategory(item){
+
+    if(isValidCategory(item.cat))
+        return item.cat;
+
+    const saved = categoryLinks[(item.nome || "").toLowerCase().trim()];
+
+    if(isValidCategory(saved))
+        return saved;
+
+    return guessCategory(item.nome);
+}
+
 let recipes =
 JSON.parse(localStorage.getItem("recipes")) || {};
 
@@ -88,6 +180,16 @@ async function saveData(){
             JSON.stringify(customPrices)
         );
 
+        localStorage.setItem(
+            "categoryLinks",
+            JSON.stringify(categoryLinks)
+        );
+
+        localStorage.setItem(
+            "extraItems",
+            JSON.stringify(extraItems)
+        );
+
         return;
     }
 
@@ -111,7 +213,11 @@ async function saveData(){
 
             shoppingList: shoppingList,
 
-            customPrices: customPrices
+            customPrices: customPrices,
+
+            categoryLinks: categoryLinks,
+
+            extraItems: extraItems
 
         }
 
@@ -570,6 +676,12 @@ async function loadData(){
             shoppingList =
                 data.shoppingList || null;
 
+            categoryLinks =
+                data.categoryLinks || categoryLinks;
+
+            if(Array.isArray(data.extraItems))
+                extraItems = data.extraItems;
+
             if(Array.isArray(data.customPrices)){
 
                 customPrices = data.customPrices;
@@ -583,6 +695,7 @@ async function loadData(){
         renderPlanner();
         renderWeekSummary();
         renderPrices();
+        renderExtras();
 
         // Ripristina la lista della spesa salvata (con quantità e confezioni)
         if(shoppingList && Array.isArray(shoppingList.items))
@@ -1190,9 +1303,41 @@ function buildProductOptions(){
 
 function renderShoppingItems(items){
 
-    const ul = document.getElementById("shoppingList");
+    const root = document.getElementById("shoppingList");
 
-    ul.innerHTML = "";
+    root.innerHTML = "";
+
+    if(items.length === 0){
+
+        renderExtras();
+
+        return;
+    }
+
+    // Una sezione per ogni categoria (sempre tutte, così si può trascinare anche in quelle vuote)
+    const lists = {};
+
+    SHOP_CATEGORIES.forEach(cat => {
+
+        const section = document.createElement("section");
+        section.className = "cat-section";
+        section.dataset.cat = cat.id;
+
+        section.innerHTML = `
+            <h4 class="cat-title">
+                <span>${cat.icon} ${escapeHtml(cat.nome)}</span>
+                <span class="cat-count"></span>
+            </h4>
+        `;
+
+        const ul = document.createElement("ul");
+        ul.className = "cat-list";
+
+        section.appendChild(ul);
+        root.appendChild(section);
+
+        lists[cat.id] = ul;
+    });
 
     items.forEach(item => {
 
@@ -1211,7 +1356,9 @@ function renderShoppingItems(items){
             li.dataset.key = item.key;
 
         li.innerHTML = `
-            <span>${escapeHtml(item.nome)}</span>
+            <span class="drag-handle" title="Trascina per spostare in un'altra categoria">⋮⋮</span>
+
+            <span class="item-name">${escapeHtml(item.nome)}</span>
 
             <input
                 type="number"
@@ -1226,11 +1373,29 @@ function renderShoppingItems(items){
             </button>
         `;
 
-        ul.appendChild(li);
+        lists[resolveCategory(item)].appendChild(li);
 
     });
 
     decorateShoppingList();
+
+    updateCategoryCounts();
+}
+
+function updateCategoryCounts(){
+
+    document
+        .querySelectorAll("#shoppingList .cat-section")
+        .forEach(section => {
+
+            const n = section.querySelectorAll("li").length;
+
+            section.querySelector(".cat-count").textContent =
+                n > 0 ? n : "";
+        });
+
+    // I bottoni degli extra dipendono da cosa c'è già nella lista
+    renderExtras();
 }
 
 function decorateShoppingList(){
@@ -1314,6 +1479,9 @@ function readShoppingState(){
                 unita: li.dataset.unita || "",
                 conf: packInput ? (Number(packInput.value) || 0) : 1,
                 key: select ? select.value : "",
+                cat: li.closest(".cat-section")
+                    ? li.closest(".cat-section").dataset.cat
+                    : "",
                 manual: li.dataset.manual === "1"
             });
 
@@ -1349,6 +1517,8 @@ function invalidateShoppingList(){
 
     ul.innerHTML = "";
 
+    renderExtras();
+
     const totale = document.getElementById("shoppingTotal");
 
     if(totale)
@@ -1357,6 +1527,8 @@ function invalidateShoppingList(){
 }
 
 function updateShoppingTotals(){
+
+    updateCategoryCounts();
 
     if(document.querySelectorAll("#shoppingList li").length === 0){
 
@@ -1456,3 +1628,289 @@ document
         saveShoppingList();
 
     });
+
+
+/* ===== Trascinamento tra categorie (mouse e touch) ===== */
+
+let dragState = null;
+
+(function setupShoppingDrag(){
+
+    const root = document.getElementById("shoppingList");
+
+    function sectionAt(x, y){
+
+        const el = document.elementFromPoint(x, y);
+
+        return el ? el.closest("#shoppingList .cat-section") : null;
+    }
+
+    function highlight(section){
+
+        if(dragState.over === section)
+            return;
+
+        if(dragState.over)
+            dragState.over.classList.remove("drop-over");
+
+        dragState.over = section;
+
+        if(section)
+            section.classList.add("drop-over");
+    }
+
+    function moveGhost(e){
+
+        dragState.ghost.style.left = (e.clientX + 12) + "px";
+        dragState.ghost.style.top = (e.clientY - 18) + "px";
+
+        highlight(sectionAt(e.clientX, e.clientY));
+
+        dragState.y = e.clientY;
+    }
+
+    // Scorrimento automatico quando si trascina vicino al bordo dello schermo
+    function autoScroll(){
+
+        if(!dragState)
+            return;
+
+        const edge = 70;
+
+        if(dragState.y < edge)
+            window.scrollBy(0, -14);
+        else if(dragState.y > window.innerHeight - edge)
+            window.scrollBy(0, 14);
+
+        dragState.raf = requestAnimationFrame(autoScroll);
+    }
+
+    function endDrag(e, drop){
+
+        if(!dragState)
+            return;
+
+        const { li, ghost, over, raf } = dragState;
+
+        cancelAnimationFrame(raf);
+
+        if(drop && over){
+
+            const list = over.querySelector(".cat-list");
+
+            const under = document
+                .elementFromPoint(e.clientX, e.clientY);
+
+            const target = under ? under.closest("#shoppingList li") : null;
+
+            if(target && target !== li && list.contains(target)){
+
+                const r = target.getBoundingClientRect();
+
+                if(e.clientY < r.top + r.height / 2)
+                    list.insertBefore(li, target);
+                else
+                    list.insertBefore(li, target.nextSibling);
+
+            }else if(!target || !list.contains(target)){
+
+                list.appendChild(li);
+            }
+
+            const nuova = over.dataset.cat;
+
+            // Ricordo la correzione: alla prossima lista questo prodotto finirà qui
+            categoryLinks[li.dataset.nome.toLowerCase().trim()] = nuova;
+
+            updateCategoryCounts();
+            saveShoppingList();
+        }
+
+        if(over)
+            over.classList.remove("drop-over");
+
+        li.classList.remove("dragging");
+        ghost.remove();
+
+        document.body.classList.remove("is-dragging");
+
+        dragState = null;
+    }
+
+    root.addEventListener("pointerdown", e => {
+
+        const handle = e.target.closest(".drag-handle");
+
+        if(!handle)
+            return;
+
+        const li = handle.closest("li");
+
+        if(!li)
+            return;
+
+        e.preventDefault();
+
+        const ghost = document.createElement("div");
+        ghost.className = "drag-ghost";
+        ghost.textContent = li.dataset.nome;
+        document.body.appendChild(ghost);
+
+        li.classList.add("dragging");
+        document.body.classList.add("is-dragging");
+
+        handle.setPointerCapture(e.pointerId);
+
+        dragState = { li, ghost, over: null, y: e.clientY, raf: 0 };
+
+        moveGhost(e);
+
+        dragState.raf = requestAnimationFrame(autoScroll);
+    });
+
+    root.addEventListener("pointermove", e => {
+
+        if(dragState)
+            moveGhost(e);
+    });
+
+    root.addEventListener("pointerup", e => endDrag(e, true));
+
+    root.addEventListener("pointercancel", e => endDrag(e, false));
+
+})();
+
+
+/* ===== Cose extra ===== */
+
+function normExtra(nome){
+    return nome.toLowerCase().trim();
+}
+
+function renderExtras(){
+
+    const ul = document.getElementById("extraList");
+
+    if(!ul)
+        return;
+
+    // Nomi già presenti nella lista della spesa
+    const inLista = new Set();
+
+    document
+        .querySelectorAll("#shoppingList li")
+        .forEach(li => inLista.add(normExtra(li.dataset.nome || "")));
+
+    ul.innerHTML = "";
+
+    extraItems.forEach((nome, i) => {
+
+        const li = document.createElement("li");
+
+        const presente = inLista.has(normExtra(nome));
+
+        li.innerHTML = `
+            <span class="extra-name">${escapeHtml(nome)}</span>
+
+            <button
+                class="extra-add ${presente ? "secondary" : ""}"
+                data-index="${i}"
+                ${presente ? "disabled" : ""}>
+                ${presente ? "Aggiunto ✓" : "Aggiungi"}
+            </button>
+
+            <button
+                class="extra-del"
+                data-index="${i}"
+                title="Togli dagli extra">
+                ✖
+            </button>
+        `;
+
+        ul.appendChild(li);
+    });
+}
+
+// Salva un nuovo nome tra gli extra (resta lì anche per le prossime spese)
+function addExtraItem(){
+
+    const input = document.getElementById("newExtraName");
+
+    let nome = input.value.trim();
+
+    if(!nome)
+        return;
+
+    nome = nome.charAt(0).toUpperCase() + nome.slice(1);
+
+    if(!extraItems.some(e => normExtra(e) === normExtra(nome)))
+        extraItems.push(nome);
+
+    input.value = "";
+
+    renderExtras();
+    saveData();
+}
+
+// Mette un extra nella lista della spesa (nella categoria giusta)
+function addExtraToShopping(nome){
+
+    // Se la lista non è ancora stata generata la creo dal piano
+    if(shoppingList === null &&
+        document.querySelectorAll("#shoppingList li").length === 0)
+        generateShoppingList(true);
+
+    const items = readShoppingState();
+
+    if(items.some(i => normExtra(i.nome) === normExtra(nome)))
+        return;
+
+    items.push({
+        nome: nome,
+        quantita: 1,
+        unita: "",
+        conf: 1,
+        key: null,
+        manual: false
+    });
+
+    renderShoppingItems(items);
+    saveShoppingList();
+}
+
+document
+    .getElementById("extraList")
+    .addEventListener("click", e => {
+
+        const btn = e.target.closest("button");
+
+        if(!btn || btn.disabled)
+            return;
+
+        const nome = extraItems[Number(btn.dataset.index)];
+
+        if(nome === undefined)
+            return;
+
+        if(btn.classList.contains("extra-add")){
+
+            addExtraToShopping(nome);
+
+        }else if(btn.classList.contains("extra-del")){
+
+            extraItems.splice(Number(btn.dataset.index), 1);
+
+            renderExtras();
+            saveData();
+        }
+    });
+
+document
+    .getElementById("newExtraName")
+    .addEventListener("keydown", e => {
+
+        if(e.key === "Enter")
+            addExtraItem();
+    });
+
+renderExtras();
