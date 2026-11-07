@@ -585,12 +585,40 @@ function prettyName(name){
     return name.charAt(0) + name.slice(1).toLowerCase();
 }
 
+// Ricerca senza maiuscole/accenti, anche parziale e singolare/plurale
+function matchesSearch(nome, query){
+
+    const qTokens = normTokens(query);
+
+    if(qTokens.length === 0)
+        return true;
+
+    const pTokens = normTokens(nome);
+    const flat = pTokens.join(" ");
+
+    return qTokens.every(q =>
+        flat.includes(q) ||
+        pTokens.some(t => tokenMatch(q, t))
+    );
+}
+
 function renderPrices(){
 
     const table = document.getElementById("priceTable");
 
-    if(!table || typeof priceDB === "undefined")
+    if(!table)
         return;
+
+    if(typeof priceDB === "undefined"){
+
+        table.innerHTML = "";
+
+        document.getElementById("priceCount").textContent =
+            "Database prezzi non caricato: controlla che il file " +
+            "prices.js sia nella stessa cartella di index.html.";
+
+        return;
+    }
 
     const query =
         document.getElementById("priceSearch")
@@ -616,7 +644,7 @@ function renderPrices(){
             };
 
         })
-        .filter(p => p.nome.toLowerCase().includes(query));
+        .filter(p => matchesSearch(p.nome, query));
 
     if(sort === "acquisti")
         list.sort((a, b) => b.storico.length - a.storico.length);
@@ -676,7 +704,9 @@ function renderPrices(){
     table.innerHTML = html;
 
     document.getElementById("priceCount").textContent =
-        list.length + " prodotti";
+        list.length === 0
+            ? "Nessun prodotto trovato"
+            : list.length + " prodotti";
 }
 
 document
