@@ -292,3 +292,107 @@ button:hover{
 select{
     margin-bottom:10px;
 }
+
+
+/* ===== Database prezzi ===== */
+
+.price-note{
+    color:#9a7386;
+    font-size:14px;
+    margin:4px 0;
+}
+
+.price-tools{
+    display:flex;
+    gap:10px;
+}
+
+.price-tools input{
+    flex:2;
+}
+
+.price-tools select{
+    flex:1;
+}
+
+.price-wrap{
+    overflow-x:auto;
+}
+
+#priceTable{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:10px;
+}
+
+#priceTable th{
+    background:#f8c6dc;
+    color:#7a3552;
+}
+
+#priceTable th,
+#priceTable td{
+    border:1px solid #f5d3e1;
+    padding:10px;
+    text-align:left;
+}
+
+#priceTable td{
+    background:white;
+}
+
+.price-row{
+    cursor:pointer;
+}
+
+.price-row:hover td{
+    background:#fff0f6;
+}
+
+.price-history td{
+    background:#fff8fb;
+    font-size:14px;
+}
+
+.price-history span{
+    display:inline-block;
+    margin:3px 14px 3px 0;
+}
+
+
+/* ===== Prezzi nella lista della spesa ===== */
+
+#shoppingList li{
+    flex-wrap:wrap;
+}
+
+#shoppingList li .price-cell{
+    min-width:75px;
+    text-align:right;
+    font-weight:bold;
+    color:#c85783;
+    white-space:nowrap;
+}
+
+#shoppingList li select.price-select{
+    width:190px;
+    margin:0;
+    padding:8px;
+    font-size:13px;
+}
+
+.shopping-total{
+    text-align:right;
+    font-size:22px;
+    font-weight:bold;
+    color:#c85783;
+    margin-top:20px;
+}
+
+.shopping-total small{
+    display:block;
+    font-size:13px;
+    font-weight:normal;
+    color:#9a7386;
+    margin-top:4px;
+}

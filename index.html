@@ -27,6 +27,10 @@
             Spesa
         </button>
 
+        <button onclick="showTab('prices')">
+            Prezzi
+        </button>
+
     </div>
 
     <div id="recipes" class="tab">
@@ -84,6 +88,39 @@
 
         <ul id="shoppingList"></ul>
 
+        <p id="shoppingTotal" class="shopping-total"></p>
+
+    </div>
+
+    <div id="prices" class="tab hidden">
+
+        <h2>Database Prezzi</h2>
+
+        <p class="price-note">
+            Prezzi di listino ricavati dagli scontrini (sconti esclusi).
+            Clicca su un prodotto per vedere lo storico.
+        </p>
+
+        <div class="price-tools">
+            <input
+                id="priceSearch"
+                placeholder="Cerca prodotto..."
+                oninput="renderPrices()">
+
+            <select id="priceSort" onchange="renderPrices()">
+                <option value="nome">Ordina: nome</option>
+                <option value="acquisti">Ordina: più acquistati</option>
+                <option value="prezzoAsc">Ordina: prezzo crescente</option>
+                <option value="prezzoDesc">Ordina: prezzo decrescente</option>
+            </select>
+        </div>
+
+        <p id="priceCount" class="price-note"></p>
+
+        <div class="price-wrap">
+            <table id="priceTable"></table>
+        </div>
+
     </div>
 
 <script type="module">
@@ -120,6 +157,7 @@ window.firebaseGetDoc = getDoc;
 window.firebaseSetDoc = setDoc;
 
 </script>
+    <script src="prices.js"></script>
     <script src="script.js" defer></script>
 
 </body>
