@@ -12,6 +12,15 @@ JSON.parse(localStorage.getItem("pantry")) || [];
 let weekPlan =
 JSON.parse(localStorage.getItem("weekPlan")) || {};
 
+let priceList = [];
+
+let customPrices =
+JSON.parse(localStorage.getItem("customPrices")) || [];
+
+let productOptionsHtml = null;
+
+const productMatchCache = {};
+
 const days = [
     "Lunedì",
     "Martedì",
@@ -24,9 +33,21 @@ const days = [
 
 function removeShoppingItem(button){
 
-    button.parentElement.remove();
+    const li = button.parentElement;
+
+    // Una voce manuale eliminata non deve ricomparire alla prossima generazione
+    if(li.dataset.manual === "1"){
+
+        const i = manualShopping.indexOf(li.dataset.nome);
+
+        if(i >= 0)
+            manualShopping.splice(i, 1);
+    }
+
+    li.remove();
 
     updateShoppingTotals();
+    saveShoppingList();
 
 }
 
@@ -57,6 +78,16 @@ async function saveData(){
             JSON.stringify(priceLinks)
         );
 
+        localStorage.setItem(
+            "shoppingList",
+            JSON.stringify(shoppingList)
+        );
+
+        localStorage.setItem(
+            "customPrices",
+            JSON.stringify(customPrices)
+        );
+
         return;
     }
 
@@ -76,7 +107,11 @@ async function saveData(){
 
             manualShopping: manualShopping,
 
-            priceLinks: priceLinks
+            priceLinks: priceLinks,
+
+            shoppingList: shoppingList,
+
+            customPrices: customPrices
 
         }
 
@@ -123,6 +158,9 @@ function addRecipe(){
 
     if(!name || ingredients.length === 0)
         return;
+
+    if(recipeInPlan(name))
+        invalidateShoppingList();
 
     recipes[name] = ingredients;
 
@@ -191,6 +229,9 @@ function deleteRecipe(recipe){
 
     if(!confirm("Eliminare la ricetta?"))
         return;
+
+    if(recipeInPlan(recipe))
+        invalidateShoppingList();
 
     delete recipes[recipe];
 
@@ -283,6 +324,8 @@ function setMeal(
 
     weekPlan[day][meal] = recipe;
 
+    invalidateShoppingList();
+
     saveData();
 
     renderWeekSummary();
@@ -331,7 +374,14 @@ function renderPantry(){
 
 }
 
-function generateShoppingList(){
+function recipeInPlan(name){
+
+    return Object.values(weekPlan).some(day =>
+        Object.values(day).includes(name)
+    );
+}
+
+function buildItemsFromPlan(){
 
     const totale = {};
 
@@ -368,84 +418,42 @@ function generateShoppingList(){
 
     });
 
-    const ul =
-        document.getElementById(
-            "shoppingList"
-        );
+    const items = Object.values(totale)
+        .sort((a, b) => a.nome.localeCompare(b.nome))
+        .map(i => ({
+            nome: i.nome,
+            quantita: Math.round(i.quantita * 100) / 100,
+            unita: i.unita,
+            manual: false
+        }));
 
-    ul.innerHTML = "";
+    manualShopping.forEach(nome => {
 
-    const tuttiGliElementi = [];
-
-    Object.values(totale)
-        .sort((a,b) =>
-            a.nome.localeCompare(b.nome)
-        )
-        .forEach(item => {
-
-            tuttiGliElementi.push({
-                nome: item.nome,
-                quantita: item.quantita,
-                unita: item.unita
-});
-``
-
+        items.push({
+            nome: nome,
+            quantita: 1,
+            unita: "",
+            manual: true
         });
-
-    manualShopping.forEach(item => {
-
-        tuttiGliElementi.push(item);
 
     });
 
-    tuttiGliElementi.forEach(item => {
-
-    const li =
-        document.createElement("li");
-
-    if(typeof item === "string"){
-
-        li.innerHTML = `
-            <span>${item}</span>
-
-            <input
-                type="number"
-                value="1"
-                min="0">
-
-            <button onclick="removeShoppingItem(this)">
-                ✖
-            </button>
-        `;
-
-    }else{
-
-        li.innerHTML = `
-            <span>${item.nome}</span>
-
-            <input
-                type="number"
-                value="${item.quantita}"
-                min="0">
-
-            <span>${item.unita}</span>
-
-            <button onclick="removeShoppingItem(this)">
-                ✖
-            </button>
-        `;
-
-    }
-
-    ul.appendChild(li);
-
-});
-
-    decorateShoppingList();
-
+    return items;
 }
 
+function generateShoppingList(force){
 
+    const giaPresente =
+        document.querySelectorAll("#shoppingList li").length > 0;
+
+    if(!force && giaPresente &&
+        !confirm("Rigenerare la lista? Le quantità e le confezioni modificate verranno azzerate."))
+        return;
+
+    renderShoppingItems(buildItemsFromPlan());
+
+    saveShoppingList();
+}
 
 function addManualShoppingItem(){
 
@@ -459,13 +467,33 @@ function addManualShoppingItem(){
 
     manualShopping.push(item);
 
-    saveData();
-
     document.getElementById(
         "manualShoppingItem"
     ).value = "";
 
-    generateShoppingList();
+    // Se la lista esiste già aggiungo solo la voce, senza azzerare il resto
+    if(shoppingList !== null){
+
+        const items = readShoppingState();
+
+        items.push({
+            nome: item,
+            quantita: 1,
+            unita: "",
+            conf: 1,
+            key: null,
+            manual: true
+        });
+
+        renderShoppingItems(items);
+        saveShoppingList();
+
+    }else{
+
+        generateShoppingList(true);
+    }
+
+    saveData();
 }
 
 function renderWeekSummary(){
@@ -539,11 +567,26 @@ async function loadData(){
             priceLinks =
                 data.priceLinks || priceLinks;
 
+            shoppingList =
+                data.shoppingList || null;
+
+            if(Array.isArray(data.customPrices)){
+
+                customPrices = data.customPrices;
+
+                rebuildPriceList();
+            }
+
         }
 
         renderRecipes();
         renderPlanner();
         renderWeekSummary();
+        renderPrices();
+
+        // Ripristina la lista della spesa salvata (con quantità e confezioni)
+        if(shoppingList && Array.isArray(shoppingList.items))
+            renderShoppingItems(shoppingList.items);
 
     }
     catch(error){
@@ -565,11 +608,15 @@ setTimeout(() => {
 
 const expandedPrices = new Set();
 
+let editingPriceId = null;
+
 function escapeHtml(text){
     return String(text)
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
 }
 
 function formatEuro(n){
@@ -602,6 +649,211 @@ function matchesSearch(nome, query){
     );
 }
 
+function todayIso(){
+
+    const d = new Date();
+
+    return d.getFullYear() + "-" +
+        String(d.getMonth() + 1).padStart(2, "0") + "-" +
+        String(d.getDate()).padStart(2, "0");
+}
+
+function customToProduct(c){
+
+    return {
+        id: c.id,
+        n: c.n,
+        u: c.u,
+        h: c.h.map(e => [e.d, e.p])
+    };
+}
+
+// Unisce i prezzi base (prices.js) con le modifiche e i prodotti aggiunti
+function rebuildPriceList(){
+
+    const base = typeof priceDB === "undefined" ? [] : priceDB;
+
+    const custom = new Map(customPrices.map(c => [c.id, c]));
+    const baseIds = new Set();
+
+    priceList = base.map(p => {
+
+        const id = p.n + "|" + p.u;
+
+        baseIds.add(id);
+
+        const c = custom.get(id);
+
+        return c
+            ? customToProduct(c)
+            : { id: id, n: p.n, u: p.u, h: p.h };
+
+    });
+
+    customPrices.forEach(c => {
+
+        if(!baseIds.has(c.id))
+            priceList.push(customToProduct(c));
+
+    });
+
+    productOptionsHtml = null;
+
+    Object.keys(productMatchCache)
+        .forEach(k => delete productMatchCache[k]);
+}
+
+function saveCustomProduct(p){
+
+    const c = {
+        id: p.id,
+        n: p.n,
+        u: p.u,
+        h: p.h.map(e => ({ d: e[0], p: e[1] }))
+    };
+
+    const i = customPrices.findIndex(x => x.id === p.id);
+
+    if(i >= 0)
+        customPrices[i] = c;
+    else
+        customPrices.push(c);
+}
+
+function priceNameTaken(nome, unita, exceptId){
+
+    const n = nome.trim().toLowerCase();
+
+    return priceList.some(p =>
+        p.id !== exceptId &&
+        p.u === unita &&
+        p.n.trim().toLowerCase() === n
+    );
+}
+
+// Dopo ogni modifica: ricostruisco l'elenco e aggiorno anche la lista della spesa
+function afterPriceEdit(){
+
+    rebuildPriceList();
+    renderPrices();
+
+    if(document.querySelectorAll("#shoppingList li").length > 0)
+        renderShoppingItems(readShoppingState());
+}
+
+function addPriceProduct(){
+
+    const nome =
+        document.getElementById("newPriceName").value.trim();
+
+    const unita =
+        document.getElementById("newPriceUnit").value;
+
+    const prezzo =
+        parseFloat(document.getElementById("newPriceValue").value);
+
+    if(!nome){
+        alert("Inserisci il nome del prodotto.");
+        return;
+    }
+
+    if(isNaN(prezzo) || prezzo < 0){
+        alert("Inserisci un prezzo valido.");
+        return;
+    }
+
+    if(priceNameTaken(nome, unita, null)){
+        alert("Esiste già un prodotto con questo nome.");
+        return;
+    }
+
+    saveCustomProduct({
+        id: "custom|" + Date.now(),
+        n: nome,
+        u: unita,
+        h: [[todayIso(), Math.round(prezzo * 100) / 100]]
+    });
+
+    saveData();
+
+    document.getElementById("newPriceName").value = "";
+    document.getElementById("newPriceValue").value = "";
+
+    // mostro subito il prodotto appena aggiunto
+    document.getElementById("priceSearch").value = nome;
+
+    afterPriceEdit();
+}
+
+function startPriceEdit(id){
+
+    editingPriceId = id;
+
+    renderPrices();
+}
+
+function cancelPriceEdit(){
+
+    editingPriceId = null;
+
+    renderPrices();
+}
+
+function savePriceEdit(){
+
+    const p = priceList.find(x => x.id === editingPriceId);
+
+    if(!p)
+        return;
+
+    const nome =
+        document.getElementById("editPriceName").value.trim();
+
+    const unita =
+        document.getElementById("editPriceUnit").value;
+
+    const prezzo =
+        parseFloat(document.getElementById("editPriceValue").value);
+
+    if(!nome){
+        alert("Inserisci il nome del prodotto.");
+        return;
+    }
+
+    if(isNaN(prezzo) || prezzo < 0){
+        alert("Inserisci un prezzo valido.");
+        return;
+    }
+
+    if(priceNameTaken(nome, unita, p.id)){
+        alert("Esiste già un prodotto con questo nome.");
+        return;
+    }
+
+    const h = p.h.map(e => [e[0], e[1]]);
+    const nuovo = Math.round(prezzo * 100) / 100;
+    const ultimo = h[h.length - 1];
+
+    // Se il prezzo cambia lo registro come prezzo di oggi (lo storico resta)
+    if(Math.round(ultimo[1] * 100) !== Math.round(nuovo * 100)){
+
+        const oggi = todayIso();
+
+        if(ultimo[0] === oggi)
+            ultimo[1] = nuovo;
+        else
+            h.push([oggi, nuovo]);
+    }
+
+    saveCustomProduct({ id: p.id, n: nome, u: unita, h: h });
+
+    editingPriceId = null;
+
+    saveData();
+
+    afterPriceEdit();
+}
+
 function renderPrices(){
 
     const table = document.getElementById("priceTable");
@@ -609,7 +861,7 @@ function renderPrices(){
     if(!table)
         return;
 
-    if(typeof priceDB === "undefined"){
+    if(priceList.length === 0 && typeof priceDB === "undefined"){
 
         table.innerHTML = "";
 
@@ -621,20 +873,20 @@ function renderPrices(){
     }
 
     const query =
-        document.getElementById("priceSearch")
-            .value.trim().toLowerCase();
+        document.getElementById("priceSearch").value;
 
     const sort =
         document.getElementById("priceSort").value;
 
-    const list = priceDB
+    const list = priceList
         .map(p => {
 
             const prezzi = p.h.map(e => e[1]);
 
             return {
-                key: p.n + "|" + p.u,
+                id: p.id,
                 nome: p.n,
+                u: p.u,
                 unita: p.u === "kg" ? "/kg" : "",
                 storico: p.h,
                 ultimo: prezzi[prezzi.length - 1],
@@ -663,24 +915,71 @@ function renderPrices(){
             <th>Max</th>
             <th>Medio</th>
             <th>Acquisti</th>
+            <th></th>
         </tr>
     `;
 
     list.forEach(p => {
 
-        const open = expandedPrices.has(p.key);
+        const open = expandedPrices.has(p.id);
 
         html += `
             <tr class="price-row"
-                data-key="${escapeHtml(p.key)}">
+                data-key="${escapeHtml(p.id)}">
                 <td>${open ? "▾" : "▸"} ${escapeHtml(prettyName(p.nome))}</td>
                 <td>${formatEuro(p.ultimo)}${p.unita}</td>
                 <td>${formatEuro(p.min)}${p.unita}</td>
                 <td>${formatEuro(p.max)}${p.unita}</td>
                 <td>${formatEuro(p.medio)}${p.unita}</td>
                 <td>${p.storico.length}</td>
+                <td>
+                    <button
+                        class="price-edit-btn"
+                        data-id="${escapeHtml(p.id)}"
+                        title="Modifica">✎</button>
+                </td>
             </tr>
         `;
+
+        if(editingPriceId === p.id){
+
+            html += `
+                <tr class="price-edit">
+                    <td colspan="7">
+                        <div class="price-edit-grid">
+
+                            <label>Nome
+                                <input
+                                    id="editPriceName"
+                                    value="${escapeHtml(prettyName(p.nome))}">
+                            </label>
+
+                            <label>Unità
+                                <select id="editPriceUnit">
+                                    <option value="pz"${p.u === "pz" ? " selected" : ""}>a confezione (€/pz)</option>
+                                    <option value="kg"${p.u === "kg" ? " selected" : ""}>al peso (€/kg)</option>
+                                </select>
+                            </label>
+
+                            <label>Prezzo attuale (€)
+                                <input
+                                    id="editPriceValue"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value="${p.ultimo.toFixed(2)}">
+                            </label>
+
+                            <div class="price-edit-actions">
+                                <button onclick="savePriceEdit()">Salva</button>
+                                <button class="secondary" onclick="cancelPriceEdit()">Annulla</button>
+                            </div>
+
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
 
         if(open){
 
@@ -694,7 +993,7 @@ function renderPrices(){
 
             html += `
                 <tr class="price-history">
-                    <td colspan="6">${righe}</td>
+                    <td colspan="7">${righe}</td>
                 </tr>
             `;
         }
@@ -713,6 +1012,15 @@ document
     .getElementById("priceTable")
     .addEventListener("click", e => {
 
+        const btn = e.target.closest(".price-edit-btn");
+
+        if(btn){
+
+            startPriceEdit(btn.dataset.id);
+
+            return;
+        }
+
         const row = e.target.closest(".price-row");
 
         if(!row)
@@ -729,6 +1037,7 @@ document
 
     });
 
+rebuildPriceList();
 renderPrices();
 
 /* ===== Prezzi nella lista della spesa ===== */
@@ -736,7 +1045,7 @@ renderPrices();
 let priceLinks =
 JSON.parse(localStorage.getItem("priceLinks")) || {};
 
-const productMatchCache = {};
+let shoppingList = null;
 
 function normTokens(text){
     return text
@@ -759,20 +1068,20 @@ function tokenMatch(a, b){
 }
 
 function productKeyOf(p){
-    return p.n + "|" + p.u;
+    return p.id;
 }
 
 function findProduct(nome){
 
     const tokens = normTokens(nome);
 
-    if(tokens.length === 0 || typeof priceDB === "undefined")
+    if(tokens.length === 0 || priceList.length === 0)
         return null;
 
     let best = null;
     let bestScore = -Infinity;
 
-    priceDB.forEach(p => {
+    priceList.forEach(p => {
 
         const pt = normTokens(p.n);
 
@@ -811,7 +1120,7 @@ function getProductForItem(nome){
         if(priceLinks[linkKey] === "")
             return null;
 
-        return priceDB.find(p =>
+        return priceList.find(p =>
             productKeyOf(p) === priceLinks[linkKey]
         ) || null;
     }
@@ -864,7 +1173,9 @@ function buildProductOptions(){
 
     let html = '<option value="">— nessun prezzo —</option>';
 
-    priceDB.forEach(p => {
+    [...priceList]
+        .sort((a, b) => a.n.localeCompare(b.n))
+        .forEach(p => {
 
         const ultimo = p.h[p.h.length - 1][1];
 
@@ -877,11 +1188,54 @@ function buildProductOptions(){
     return html;
 }
 
-let productOptionsHtml = null;
+function renderShoppingItems(items){
+
+    const ul = document.getElementById("shoppingList");
+
+    ul.innerHTML = "";
+
+    items.forEach(item => {
+
+        const li = document.createElement("li");
+
+        li.dataset.nome = item.nome;
+        li.dataset.unita = item.unita || "";
+
+        if(item.manual)
+            li.dataset.manual = "1";
+
+        if(item.conf !== undefined && item.conf !== null)
+            li.dataset.conf = item.conf;
+
+        if(item.key !== undefined && item.key !== null)
+            li.dataset.key = item.key;
+
+        li.innerHTML = `
+            <span>${escapeHtml(item.nome)}</span>
+
+            <input
+                type="number"
+                value="${item.quantita}"
+                min="0"
+                step="any">
+
+            <span>${escapeHtml(item.unita || "")}</span>
+
+            <button onclick="removeShoppingItem(this)">
+                ✖
+            </button>
+        `;
+
+        ul.appendChild(li);
+
+    });
+
+    decorateShoppingList();
+}
 
 function decorateShoppingList(){
 
-    if(typeof priceDB === "undefined")
+    if(priceList.length === 0)
         return;
 
     if(productOptionsHtml === null)
@@ -891,20 +1245,16 @@ function decorateShoppingList(){
         .querySelectorAll("#shoppingList li")
         .forEach(li => {
 
-            const nome = li.children[0].textContent.trim();
-            const terzo = li.children[2];
+            const nome = li.dataset.nome;
 
-            li.dataset.nome = nome;
-            li.dataset.unita =
-                (terzo && terzo.tagName === "SPAN")
-                    ? terzo.textContent.trim()
-                    : "pz";
+            const conf =
+                li.dataset.conf !== undefined ? li.dataset.conf : 1;
 
             const pack = document.createElement("span");
             pack.className = "pack-wrap";
             pack.innerHTML =
                 '<input type="number" class="pack-input" ' +
-                'value="1" min="0" step="1" ' +
+                'value="' + conf + '" min="0" step="1" ' +
                 'title="Numero di confezioni da comprare">' +
                 '<small>conf.</small>';
 
@@ -915,15 +1265,22 @@ function decorateShoppingList(){
             select.className = "price-select";
             select.innerHTML = productOptionsHtml;
 
-            const product = getProductForItem(nome);
-            select.value = product ? productKeyOf(product) : "";
+            if(li.dataset.key !== undefined){
+
+                select.value = li.dataset.key;
+
+            }else{
+
+                const product = getProductForItem(nome);
+                select.value = product ? productKeyOf(product) : "";
+            }
 
             select.addEventListener("change", () => {
 
                 priceLinks[nome.toLowerCase().trim()] = select.value;
 
-                saveData();
                 updateShoppingTotals();
+                saveShoppingList();
 
             });
 
@@ -938,7 +1295,82 @@ function decorateShoppingList(){
     updateShoppingTotals();
 }
 
+// Legge dalla pagina lo stato attuale della lista
+function readShoppingState(){
+
+    const items = [];
+
+    document
+        .querySelectorAll("#shoppingList li")
+        .forEach(li => {
+
+            const qtyInput = li.querySelector("input:not(.pack-input)");
+            const packInput = li.querySelector(".pack-input");
+            const select = li.querySelector(".price-select");
+
+            items.push({
+                nome: li.dataset.nome,
+                quantita: qtyInput ? (Number(qtyInput.value) || 0) : 0,
+                unita: li.dataset.unita || "",
+                conf: packInput ? (Number(packInput.value) || 0) : 1,
+                key: select ? select.value : "",
+                manual: li.dataset.manual === "1"
+            });
+
+        });
+
+    return items;
+}
+
+let shoppingSaveTimer = null;
+
+// Salva la lista (anche su Firestore, quindi visibile dal telefono)
+function saveShoppingList(){
+
+    shoppingList = { items: readShoppingState() };
+
+    clearTimeout(shoppingSaveTimer);
+
+    shoppingSaveTimer = setTimeout(saveData, 600);
+}
+
+// Il piano è cambiato: la lista salvata non è più valida
+function invalidateShoppingList(){
+
+    const ul = document.getElementById("shoppingList");
+
+    if(!ul)
+        return;
+
+    if(shoppingList === null && ul.children.length === 0)
+        return;
+
+    shoppingList = null;
+
+    ul.innerHTML = "";
+
+    const totale = document.getElementById("shoppingTotal");
+
+    if(totale)
+        totale.innerHTML =
+            '<small>Il piano è cambiato: premi "Genera Lista" per aggiornare la lista della spesa.</small>';
+}
+
 function updateShoppingTotals(){
+
+    if(document.querySelectorAll("#shoppingList li").length === 0){
+
+        // lista vuota: tolgo il totale, ma lascio l'avviso di piano modificato
+        if(shoppingList !== null){
+
+            const t = document.getElementById("shoppingTotal");
+
+            if(t)
+                t.innerHTML = "";
+        }
+
+        return;
+    }
 
     let somma = 0;
     let senzaPrezzo = 0;
@@ -955,7 +1387,7 @@ function updateShoppingTotals(){
             if(!cell || !select || !qtyInput || !packInput)
                 return;
 
-            const product = priceDB.find(p =>
+            const product = priceList.find(p =>
                 productKeyOf(p) === select.value
             ) || null;
 
@@ -1018,4 +1450,9 @@ function updateShoppingTotals(){
 
 document
     .getElementById("shoppingList")
-    .addEventListener("input", updateShoppingTotals);
+    .addEventListener("input", () => {
+
+        updateShoppingTotals();
+        saveShoppingList();
+
+    });

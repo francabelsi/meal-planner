@@ -418,3 +418,93 @@ select{
     font-weight:normal;
     color:#9a7386;
 }
+
+
+/* ===== Aggiunta e modifica prodotti ===== */
+
+.price-add{
+    background:#fff7fa;
+    border:1px solid #ffd5e8;
+    border-radius:20px;
+    padding:5px 15px 15px;
+    margin:15px 0;
+}
+
+.price-add h3{
+    margin:10px 0 5px;
+}
+
+.price-add-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:center;
+}
+
+.price-add-row input,
+.price-add-row select{
+    margin:0;
+}
+
+.price-add-row input[type="text"],
+.price-add-row #newPriceName{
+    flex:2 1 180px;
+    width:auto;
+}
+
+.price-add-row select{
+    flex:1 1 180px;
+    width:auto;
+}
+
+.price-add-row #newPriceValue{
+    flex:1 1 110px;
+    width:auto;
+}
+
+#priceTable button.price-edit-btn{
+    background:#fde2f3;
+    color:#c85783;
+    padding:4px 10px;
+    border-radius:10px;
+}
+
+#priceTable button.price-edit-btn:hover{
+    background:#ffd0e6;
+}
+
+.price-edit td{
+    background:#fff8fb !important;
+}
+
+.price-edit-grid{
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+    align-items:flex-end;
+}
+
+.price-edit-grid label{
+    flex:1 1 180px;
+    font-size:13px;
+    color:#9a7386;
+}
+
+.price-edit-grid input,
+.price-edit-grid select{
+    margin:4px 0 0;
+}
+
+.price-edit-actions{
+    display:flex;
+    gap:8px;
+}
+
+button.secondary{
+    background:#eadde4;
+    color:#7a3552;
+}
+
+button.secondary:hover{
+    background:#dccbd5;
+}

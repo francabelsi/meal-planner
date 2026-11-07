@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Sweet Meal Planner</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=3">
 </head>
 
 <body>
@@ -98,8 +98,39 @@
 
         <p class="price-note">
             Prezzi di listino ricavati dagli scontrini (sconti esclusi).
-            Clicca su un prodotto per vedere lo storico.
+            Clicca su un prodotto per vedere lo storico, oppure su ✎ per
+            modificarne nome, unità e prezzo.
         </p>
+
+        <div class="price-add">
+
+            <h3>Aggiungi prodotto</h3>
+
+            <div class="price-add-row">
+
+                <input
+                    id="newPriceName"
+                    placeholder="Nome prodotto">
+
+                <select id="newPriceUnit">
+                    <option value="pz">a confezione (€/pz)</option>
+                    <option value="kg">al peso (€/kg)</option>
+                </select>
+
+                <input
+                    id="newPriceValue"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Prezzo €">
+
+                <button onclick="addPriceProduct()">
+                    Aggiungi
+                </button>
+
+            </div>
+
+        </div>
 
         <div class="price-tools">
             <input
@@ -157,8 +188,8 @@ window.firebaseGetDoc = getDoc;
 window.firebaseSetDoc = setDoc;
 
 </script>
-    <script src="prices.js"></script>
-    <script src="script.js" defer></script>
+    <script src="prices.js?v=3"></script>
+    <script src="script.js?v=3" defer></script>
 
 </body>
 
